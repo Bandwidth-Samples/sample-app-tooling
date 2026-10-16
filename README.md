@@ -51,7 +51,7 @@ Language defaults:
 | `java.yml` | `java-version` | `21` | `mvn -B -DskipTests package` | `mvn -B spring-boot:run` |
 | `php.yml` | `php-version` | `8.3` | `composer install` | `php -S localhost:$LOCAL_PORT -t public` |
 
-The job uses fake credentials only, so no secrets are needed and it is safe on fork PRs. If a run fails, the app's output is uploaded as the `app-log` artifact.
+The job uses fake credentials only, so no secrets are needed and it is safe on fork PRs. If a run fails, the app's output is printed at the end of the job log.
 
 ## Contracts
 

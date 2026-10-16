@@ -69,9 +69,6 @@ jobs:
           --start-command "${{ inputs.start-command }}"
           --log-file ${{ runner.temp }}/app.log
 
-      - name: Upload app log
+      - name: Show app log
         if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: app-log
-          path: ${{ runner.temp }}/app.log
+        run: cat ${{ runner.temp }}/app.log
