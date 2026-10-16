@@ -26,18 +26,31 @@ jobs:
       sample: voice-record
 ```
 
-Swap `node.yml` for `python.yml` or `ruby.yml` to match the sample's language. Pin the workflow by tag so a contract change can't turn every sample red at once.
+Swap `node.yml` for the workflow matching the sample's language. Pin the workflow by tag so a contract change can't turn every sample red at once.
 
 ### Inputs
 
-| Input | Required | Default (node / python / ruby) |
+Every workflow takes these inputs:
+
+| Input | Required | Description |
 |---|---|---|
 | `sample` | yes | Contract to check against, e.g. `voice-record` |
-| `working-directory` | no | `.` |
-| `node-version` / `python-version` / `ruby-version` | no | `22` / `3.12` / `3.3` |
-| `install-command` | no | `npm ci` / `pip install -r requirements.txt` / `bundle install` |
-| `start-command` | no | `npm start` / `python main.py` / `bundle exec ruby app.rb` |
-| `tooling-ref` | no | `v1`. The ref of this repo the contract, fixtures and runner are taken from |
+| `working-directory` | no | Directory of the app inside the repo. Default `.` |
+| `tooling-ref` | no | Ref of this repo the contract, fixtures and runner are taken from. Default `v1` |
+| `install-command` | no | Language default below |
+| `start-command` | no | Language default below |
+| `<language>-version` | no | Language default below |
+
+Language defaults:
+
+| Workflow | Version input | Default version | `install-command` | `start-command` |
+|---|---|---|---|---|
+| `node.yml` | `node-version` | `22` | `npm ci` | `npm start` |
+| `python.yml` | `python-version` | `3.12` | `pip install -r requirements.txt` | `python main.py` |
+| `ruby.yml` | `ruby-version` | `3.3` | `bundle install` | `bundle exec ruby app.rb` |
+| `csharp.yml` | `dotnet-version` | `8.0.x` | `dotnet restore` | `dotnet run` |
+| `java.yml` | `java-version` | `21` | `mvn -B -DskipTests package` | `mvn -B spring-boot:run` |
+| `php.yml` | `php-version` | `8.3` | `composer install` | `php -S localhost:$LOCAL_PORT -t public` |
 
 The job uses fake credentials only, so no secrets are needed and it is safe on fork PRs. If a run fails, the app's output is uploaded as the `app-log` artifact.
 
