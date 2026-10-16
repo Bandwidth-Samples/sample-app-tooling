@@ -49,7 +49,7 @@ Language defaults:
 | `ruby.yml` | `ruby-version` | `3.3` | `bundle install` | `bundle exec ruby app.rb` |
 | `csharp.yml` | `dotnet-version` | `8.0.x` | `dotnet restore` | `dotnet run` |
 | `java.yml` | `java-version` | `21` | `mvn -B -DskipTests package` | `mvn -B spring-boot:run` |
-| `php.yml` | `php-version` | `8.3` | `composer install` | `php -S localhost:$LOCAL_PORT -t public` |
+| `php.yml` | `php-version` | `8.3` | `composer install` | `composer start` |
 
 The job uses fake credentials only, so no secrets are needed and it is safe on fork PRs. If a run fails, the app's output is printed at the end of the job log.
 

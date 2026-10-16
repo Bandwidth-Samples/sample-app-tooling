@@ -17,6 +17,7 @@ import yaml
 
 TOOLING_ROOT = Path(__file__).resolve().parent.parent
 FAILURE_EXIT_TIMEOUT = 15
+IS_WINDOWS = os.name == "nt"
 
 
 def free_port():
@@ -38,13 +39,18 @@ def build_env(contract, port, unset=None, override=None):
 
 
 def start_app(command, app_dir, env, log):
+    group = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if IS_WINDOWS
+             else {"start_new_session": True})
     return subprocess.Popen(
         command, shell=True, cwd=app_dir, env=env,
-        stdout=log, stderr=subprocess.STDOUT, start_new_session=True,
+        stdout=log, stderr=subprocess.STDOUT, **group,
     )
 
 
 def stop_app(proc):
+    if IS_WINDOWS:
+        subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True)
+        return
     if proc.poll() is None:
         os.killpg(proc.pid, signal.SIGTERM)
         try:

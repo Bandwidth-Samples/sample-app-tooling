@@ -22,14 +22,19 @@ on:
       start-command:
         required: false
         type: string
-        default: php -S localhost:$LOCAL_PORT -t public
+        default: composer start
+      os:
+        description: Runner to use, e.g. ubuntu-latest or windows-latest
+        required: false
+        type: string
+        default: ubuntu-latest
 
 permissions:
   contents: read
 
 jobs:
   contract:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.os }}
     steps:
       - name: Checkout App
         uses: actions/checkout@v7
