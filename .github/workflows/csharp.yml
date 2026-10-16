@@ -23,11 +23,6 @@ on:
         required: false
         type: string
         default: dotnet run
-      tooling-ref:
-        description: Ref of sample-app-tooling to take the contract, fixtures and runner from
-        required: false
-        type: string
-        default: v1
 
 permissions:
   contents: read
@@ -45,7 +40,6 @@ jobs:
         uses: actions/checkout@v7
         with:
           repository: Bandwidth-Samples/sample-app-tooling
-          ref: ${{ inputs.tooling-ref }}
           path: tooling
 
       - name: Setup .NET

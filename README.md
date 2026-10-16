@@ -21,12 +21,12 @@ on:
 jobs:
   contract-test:
     name: Contract Test
-    uses: Bandwidth-Samples/sample-app-tooling/.github/workflows/node.yml@v1
+    uses: Bandwidth-Samples/sample-app-tooling/.github/workflows/node.yml@main
     with:
       sample: voice-record
 ```
 
-Swap `node.yml` for the workflow matching the sample's language. Pin the workflow by tag so a contract change can't turn every sample red at once.
+Swap `node.yml` for the workflow matching the sample's language. The contract is read from this repo's `main` branch, so a contract change applies to every sample on its next run.
 
 ### Inputs
 
@@ -36,7 +36,6 @@ Every workflow takes these inputs:
 |---|---|---|
 | `sample` | yes | Contract to check against, e.g. `voice-record` |
 | `working-directory` | no | Directory of the app inside the repo. Default `.` |
-| `tooling-ref` | no | Ref of this repo the contract, fixtures and runner are taken from. Default `v1` |
 | `install-command` | no | Language default below |
 | `start-command` | no | Language default below |
 | `<language>-version` | no | Language default below |
