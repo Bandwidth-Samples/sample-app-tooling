@@ -1,0 +1,82 @@
+name: Sample contract (Node)
+
+on:
+  workflow_call:
+    inputs:
+      sample:
+        description: Contract to check against, e.g. voice-record
+        required: true
+        type: string
+      working-directory:
+        required: false
+        type: string
+        default: .
+      node-version:
+        required: false
+        type: string
+        default: "22"
+      install-command:
+        required: false
+        type: string
+        default: npm ci
+      start-command:
+        required: false
+        type: string
+        default: npm start
+      tooling-ref:
+        description: Ref of sample-app-tooling to take the contract, fixtures and runner from
+        required: false
+        type: string
+        default: v1
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout App
+        uses: actions/checkout@v7
+        with:
+          path: app
+
+      - name: Checkout Tooling
+        uses: actions/checkout@v7
+        with:
+          repository: Bandwidth-Samples/sample-app-tooling
+          ref: ${{ inputs.tooling-ref }}
+          path: tooling
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ inputs.node-version }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install app dependencies
+        working-directory: app/${{ inputs.working-directory }}
+        run: ${{ inputs.install-command }}
+
+      - name: Install runner dependencies
+        run: pip install -r tooling/runner/requirements.txt
+
+      - name: Run contract
+        run: >
+          python tooling/runner/run_contract.py
+          --contract tooling/contracts/${{ inputs.sample }}.yml
+          --fixtures-root tooling
+          --app-dir app/${{ inputs.working-directory }}
+          --start-command "${{ inputs.start-command }}"
+          --log-file ${{ runner.temp }}/app.log
+
+      - name: Upload app log
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: app-log
+          path: ${{ runner.temp }}/app.log

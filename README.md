@@ -1,0 +1,69 @@
+# sample-app-tooling
+
+Shared tooling for the Bandwidth sample apps. A sample app calls a reusable GitHub Actions workflow from this repo, which boots the app and checks it against a contract: the env vars, routes, status codes and BXML every sample of that type must have.
+
+The checks are black-box. A runner starts the app as a subprocess, sends it shared webhook fixtures over HTTP, and compares the responses to the contract. The contract is the same for every language, so the samples can't drift apart.
+
+## Using it in a sample app
+
+Add `.github/workflows/test.yml` to the sample repo:
+
+```yaml
+name: Test
+
+on:
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 9 * * 1"
+
+jobs:
+  contract-test:
+    name: Contract Test
+    uses: Bandwidth-Samples/sample-app-tooling/.github/workflows/node.yml@v1
+    with:
+      sample: voice-record
+```
+
+Swap `node.yml` for `python.yml` or `ruby.yml` to match the sample's language. Pin the workflow by tag so a contract change can't turn every sample red at once.
+
+### Inputs
+
+| Input | Required | Default (node / python / ruby) |
+|---|---|---|
+| `sample` | yes | Contract to check against, e.g. `voice-record` |
+| `working-directory` | no | `.` |
+| `node-version` / `python-version` / `ruby-version` | no | `22` / `3.12` / `3.3` |
+| `install-command` | no | `npm ci` / `pip install -r requirements.txt` / `bundle install` |
+| `start-command` | no | `npm start` / `python main.py` / `bundle exec ruby app.rb` |
+| `tooling-ref` | no | `v1`. The ref of this repo the contract, fixtures and runner are taken from |
+
+The job uses fake credentials only, so no secrets are needed and it is safe on fork PRs. If a run fails, the app's output is uploaded as the `app-log` artifact.
+
+## Contracts
+
+| Contract | Description |
+|---|---|
+| [`contracts/voice-record.yml`](contracts/voice-record.yml) | Inbound call, voicemail recording, `recordingAvailable` webhook |
+
+Each contract lists the env vars the app must read, the startup failure cases, and the requests to send with their expected status, content type and body. Request bodies live in [`fixtures/`](fixtures). A case with `skip: true` is defined but not run.
+
+## Running the runner locally
+
+Needs Python 3 and the dependencies in `runner/requirements.txt`.
+
+```sh
+pip install -r runner/requirements.txt
+
+python runner/run_contract.py \
+  --contract contracts/voice-record.yml \
+  --app-dir ../voice-record-js \
+  --start-command "npm start"
+```
+
+The runner picks a free port, sets fake `BW_*` env vars, and drops any `BW_*`, `CLIENT_*` and `LOCAL_PORT` variables from your shell so real credentials never reach the app. It exits non-zero if any case fails. Use `--skip <case-id>` to skip a case and `--log-file` to keep the app's output.
+
+## License
+
+[MIT](LICENSE)

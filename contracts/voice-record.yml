@@ -1,0 +1,72 @@
+sample: voice-record
+
+env:
+  BW_ACCOUNT_ID: "9900000"
+  BW_CLIENT_ID: fake-client-id
+  BW_CLIENT_SECRET: fake-client-secret
+  LOCAL_PORT: "{port}"
+
+startup:
+  ready_timeout_seconds: 30
+  # each case blanks or breaks one var and expects a non-zero exit
+  failure_cases:
+    - { id: T2-account-id, unset: BW_ACCOUNT_ID }
+    - { id: T2-client-id, unset: BW_CLIENT_ID }
+    - { id: T2-client-secret, unset: BW_CLIENT_SECRET }
+    - { id: T2-port, unset: LOCAL_PORT }
+    - { id: T2-port-not-int, set: { LOCAL_PORT: not-a-port } }
+
+fixtures_dir: fixtures/voice-record
+
+cases:
+  - id: T3
+    name: initiate returns BXML
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: initiate.json }
+    expect:
+      status: 200
+      content_type: application/xml
+      bxml:
+        root: Response
+        children:
+          - { tag: SpeakSentence, text: "You have reached Vandelay Industries, Kal Varnsen is unavailable at this time." }
+          - { tag: SpeakSentence, text: "At the tone, please record your message, when you have finished recording, you may hang up." }
+          - { tag: PlayAudio, text_ends_with: /tone.mp3 }
+          - tag: Record
+            attrs:
+              recordingAvailableUrl_ends_with: /callbacks/inbound/voice/recordingAvailable
+              maxDuration: "30"
+
+  - id: T4
+    name: inbound voice rejects wrong eventType
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: wrong-event-type.json }
+    expect: { status: 400 }
+
+  - id: T5
+    name: inbound voice rejects malformed body
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: malformed.txt }
+    expect: { status: 400 }
+
+  - id: T6
+    name: tone is served as audio/mpeg
+    request: { method: GET, path: /tone.mp3 }
+    expect:
+      status: 200
+      content_type: audio/mpeg
+      body_equals_file: tone.mp3
+
+  - id: T7
+    name: recordingAvailable rejects wrong eventType
+    request: { method: POST, path: /callbacks/inbound/voice/recordingAvailable, fixture: wrong-event-type.json }
+    expect: { status: 400 }
+
+  - id: T8
+    name: recordingAvailable rejects malformed body
+    request: { method: POST, path: /callbacks/inbound/voice/recordingAvailable, fixture: malformed.txt }
+    expect: { status: 400 }
+
+  # needs a Bandwidth stub, see voice-record-contract.md
+  - id: T9
+    name: recordingAvailable downloads and saves the recording
+    skip: true
+    request: { method: POST, path: /callbacks/inbound/voice/recordingAvailable, fixture: recording-available.json }
+    expect: { status: 204 }
