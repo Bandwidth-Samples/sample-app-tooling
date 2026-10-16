@@ -122,7 +122,7 @@ def check_bxml(raw, expected):
     return errors
 
 
-def check_case(case, port, fixtures_dir, app_dir):
+def check_case(case, port, fixtures_dir):
     status, content_type, body = send(port, case["request"], fixtures_dir)
     expect = case["expect"]
     errors = []
@@ -135,7 +135,7 @@ def check_case(case, port, fixtures_dir, app_dir):
     if "bxml" in expect:
         errors += check_bxml(body, expect["bxml"])
     if "body_equals_file" in expect:
-        want = (app_dir / expect["body_equals_file"]).read_bytes()
+        want = (fixtures_dir / expect["body_equals_file"]).read_bytes()
         if body != want:
             errors.append(f"body differs from {expect['body_equals_file']}")
     return errors
@@ -183,7 +183,7 @@ def main():
                         results.append((case["id"], case["name"], None))
                         continue
                     results.append((case["id"], case["name"],
-                                    check_case(case, port, fixtures_dir, args.app_dir)))
+                                    check_case(case, port, fixtures_dir)))
         finally:
             stop_app(proc)
 
