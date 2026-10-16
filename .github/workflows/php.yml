@@ -23,18 +23,13 @@ on:
         required: false
         type: string
         default: composer start
-      os:
-        description: Runner to use, e.g. ubuntu-latest or windows-latest
-        required: false
-        type: string
-        default: ubuntu-latest
 
 permissions:
   contents: read
 
 jobs:
   contract:
-    runs-on: ${{ inputs.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout App
         uses: actions/checkout@v7
