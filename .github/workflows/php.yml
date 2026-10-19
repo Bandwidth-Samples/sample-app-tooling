@@ -29,6 +29,7 @@ permissions:
 
 jobs:
   contract:
+    name: PHP Contract
     runs-on: ubuntu-latest
     steps:
       - name: Checkout App

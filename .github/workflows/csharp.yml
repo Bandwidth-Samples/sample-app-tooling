@@ -29,6 +29,7 @@ permissions:
 
 jobs:
   contract:
+    name: C# Contract
     runs-on: ubuntu-latest
     steps:
       - name: Checkout App
