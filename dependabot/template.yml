@@ -1,0 +1,19 @@
+version: 2
+
+updates:
+  - package-ecosystem: <ecosystem>
+    directory: <directory>
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    ignore:
+      - dependency-name: "<sdk-package>"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-patch
+    groups:
+      dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "<sdk-package>"
