@@ -89,6 +89,35 @@ def send(port, request, fixtures_dir):
         return e.code, e.headers.get("Content-Type", ""), e.read()
 
 
+def check_children(node, expected, label):
+    errors = []
+    actual = list(node)
+    if len(actual) != len(expected):
+        errors.append(f"{label} has {len(actual)} children, expected {len(expected)}")
+    for i, (child, want) in enumerate(zip(actual, expected)):
+        if child.tag != want["tag"]:
+            errors.append(f"{label} child {i} is <{child.tag}>, expected <{want['tag']}>")
+            continue
+        text = (child.text or "").strip()
+        if "text" in want and text != want["text"]:
+            errors.append(f"<{child.tag}> text is {text!r}, expected {want['text']!r}")
+        if "text_ends_with" in want and not text.endswith(want["text_ends_with"]):
+            errors.append(f"<{child.tag}> text {text!r} doesn't end with {want['text_ends_with']!r}")
+        for name, value in want.get("attrs", {}).items():
+            suffix = name.endswith("_ends_with")
+            attr = name.removesuffix("_ends_with")
+            got = child.get(attr)
+            if got is None:
+                errors.append(f"<{child.tag}> is missing attribute {attr}")
+            elif suffix and not got.endswith(value):
+                errors.append(f"<{child.tag}> {attr}={got!r} doesn't end with {value!r}")
+            elif not suffix and got != value:
+                errors.append(f"<{child.tag}> {attr}={got!r}, expected {value!r}")
+        if "children" in want:
+            errors += check_children(child, want["children"], f"<{child.tag}>")
+    return errors
+
+
 def check_bxml(raw, expected):
     try:
         root = ET.fromstring(raw)
@@ -97,29 +126,7 @@ def check_bxml(raw, expected):
     errors = []
     if root.tag != expected["root"]:
         errors.append(f"root is <{root.tag}>, expected <{expected['root']}>")
-    actual = list(root)
-    if len(actual) != len(expected["children"]):
-        errors.append(f"{len(actual)} children, expected {len(expected['children'])}")
-    for i, (node, want) in enumerate(zip(actual, expected["children"])):
-        if node.tag != want["tag"]:
-            errors.append(f"child {i} is <{node.tag}>, expected <{want['tag']}>")
-            continue
-        text = (node.text or "").strip()
-        if "text" in want and text != want["text"]:
-            errors.append(f"<{node.tag}> text is {text!r}, expected {want['text']!r}")
-        if "text_ends_with" in want and not text.endswith(want["text_ends_with"]):
-            errors.append(f"<{node.tag}> text {text!r} doesn't end with {want['text_ends_with']!r}")
-        for name, value in want.get("attrs", {}).items():
-            suffix = name.endswith("_ends_with")
-            attr = name.removesuffix("_ends_with")
-            got = node.get(attr)
-            if got is None:
-                errors.append(f"<{node.tag}> is missing attribute {attr}")
-            elif suffix and not got.endswith(value):
-                errors.append(f"<{node.tag}> {attr}={got!r} doesn't end with {value!r}")
-            elif not suffix and got != value:
-                errors.append(f"<{node.tag}> {attr}={got!r}, expected {value!r}")
-    return errors
+    return errors + check_children(root, expected["children"], f"<{root.tag}>")
 
 
 def check_case(case, port, fixtures_dir):
