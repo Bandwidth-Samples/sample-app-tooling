@@ -1,0 +1,12 @@
+{
+  "eventType": "initiate",
+  "eventTime": "2026-01-01T12:00:00.000Z",
+  "accountId": "9900000",
+  "applicationId": "00000000-0000-0000-0000-000000000000",
+  "from": "+19195550123",
+  "to": "+19195554321",
+  "direction": "inbound",
+  "callId": "c-00000000-00000000-00000000-000000000001",
+  "callUrl": "https://voice.bandwidth.com/api/v2/accounts/9900000/calls/c-00000000-00000000-00000000-000000000001",
+  "startTime": "2026-01-01T12:00:00.000Z"
+}

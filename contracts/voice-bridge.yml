@@ -1,0 +1,91 @@
+sample: voice-bridge
+
+env:
+  BW_ACCOUNT_ID: "9900000"
+  BW_CLIENT_ID: fake-client-id
+  BW_CLIENT_SECRET: fake-client-secret
+  BW_VOICE_APPLICATION_ID: "00000000-0000-0000-0000-000000000000"
+  BW_NUMBER: "+19195554321"
+  USER_NUMBER: "+19195551234"
+  BASE_CALLBACK_URL: https://example.invalid
+  LOCAL_PORT: "{port}"
+
+startup:
+  ready_timeout_seconds: 30
+  # each case blanks or breaks one var and expects a non-zero exit
+  failure_cases:
+    - { id: T2-account-id, unset: BW_ACCOUNT_ID }
+    - { id: T2-client-id, unset: BW_CLIENT_ID }
+    - { id: T2-client-secret, unset: BW_CLIENT_SECRET }
+    - { id: T2-application-id, unset: BW_VOICE_APPLICATION_ID }
+    - { id: T2-number, unset: BW_NUMBER }
+    - { id: T2-user-number, unset: USER_NUMBER }
+    - { id: T2-callback-url, unset: BASE_CALLBACK_URL }
+    - { id: T2-port, unset: LOCAL_PORT }
+    - { id: T2-port-not-int, set: { LOCAL_PORT: not-a-port } }
+
+fixtures_dir: fixtures/voice-bridge
+
+cases:
+  # needs a Bandwidth stub, same as voice-record's download case
+  - id: T3
+    name: initiate creates the outbound call and rings
+    skip: true
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: initiate.json }
+    expect:
+      status: 200
+      content_type: application/xml
+      bxml:
+        root: Response
+        children:
+          - { tag: SpeakSentence, text: "Hold while we connect you." }
+          - { tag: Ring, attrs: { duration: "30" } }
+
+  # needs a Bandwidth stub that fails create call
+  - id: T4
+    name: initiate speaks and hangs up when create call fails
+    skip: true
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: initiate.json }
+    expect:
+      status: 200
+      content_type: application/xml
+      bxml:
+        root: Response
+        children:
+          - { tag: SpeakSentence, text: "An error occurred. Ending call." }
+          - { tag: Hangup }
+
+  - id: T5
+    name: inbound voice rejects wrong eventType
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: answer.json }
+    expect: { status: 400 }
+
+  - id: T6
+    name: inbound voice rejects malformed body
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: malformed.txt }
+    expect: { status: 400 }
+
+  - id: T7
+    name: answer bridges to the tagged inbound call
+    request: { method: POST, path: /callbacks/outbound/voice, fixture: answer.json }
+    expect:
+      status: 200
+      content_type: application/xml
+      bxml:
+        root: Response
+        children:
+          - { tag: SpeakSentence, text: "Hold while we connect you. We will begin to bridge you now." }
+          - { tag: Bridge, text: "c-00000000-00000000-00000000-000000000001" }
+
+  - id: T8
+    name: disconnect returns an empty Response
+    request: { method: POST, path: /callbacks/outbound/voice, fixture: disconnect.json }
+    expect:
+      status: 200
+      content_type: application/xml
+      bxml: { root: Response, children: [] }
+
+  - id: T9
+    name: outbound voice rejects malformed body
+    request: { method: POST, path: /callbacks/outbound/voice, fixture: malformed.txt }
+    expect: { status: 400 }
