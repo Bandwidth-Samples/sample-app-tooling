@@ -1,0 +1,105 @@
+sample: messaging-send-receive
+
+env:
+  BW_ACCOUNT_ID: "9900000"
+  BW_CLIENT_ID: fake-client-id
+  BW_CLIENT_SECRET: fake-client-secret
+  BW_MESSAGING_APPLICATION_ID: "00000000-0000-0000-0000-000000000000"
+  BW_NUMBER: "+19195554321"
+  LOCAL_PORT: "{port}"
+
+startup:
+  ready_timeout_seconds: 30
+  # each case blanks or breaks one var and expects a non-zero exit
+  failure_cases:
+    - { id: T2-account-id, unset: BW_ACCOUNT_ID }
+    - { id: T2-client-id, unset: BW_CLIENT_ID }
+    - { id: T2-client-secret, unset: BW_CLIENT_SECRET }
+    - { id: T2-application-id, unset: BW_MESSAGING_APPLICATION_ID }
+    - { id: T2-number, unset: BW_NUMBER }
+    - { id: T2-port, unset: LOCAL_PORT }
+    - { id: T2-port-not-int, set: { LOCAL_PORT: not-a-port } }
+
+fixtures_dir: fixtures/messaging-send-receive
+
+cases:
+  - id: T3
+    name: send rejects a missing to
+    request: { method: POST, path: /messages, fixture: send-no-to.json }
+    expect: { status: 400 }
+
+  - id: T4
+    name: send rejects a missing text
+    request: { method: POST, path: /messages, fixture: send-no-text.json }
+    expect: { status: 400 }
+
+  - id: T5
+    name: send rejects media that isn't a list
+    request: { method: POST, path: /messages, fixture: send-bad-media.json }
+    expect: { status: 400 }
+
+  - id: T6
+    name: send rejects malformed body
+    request: { method: POST, path: /messages, fixture: malformed.txt }
+    expect: { status: 400 }
+
+  # needs a Bandwidth stub, same as voice-record's download case
+  - id: T7
+    name: send an SMS
+    skip: true
+    request: { method: POST, path: /messages, fixture: send-sms.json }
+    expect: { status: 204 }
+
+  # needs a Bandwidth stub
+  - id: T8
+    name: send an MMS
+    skip: true
+    request: { method: POST, path: /messages, fixture: send-mms.json }
+    expect: { status: 204 }
+
+  - id: T9
+    name: status callback accepts message-sending
+    request: { method: POST, path: /callbacks/outbound/messaging/status, fixture: message-sending.json }
+    expect: { status: 204 }
+
+  - id: T10
+    name: status callback accepts message-delivered
+    request: { method: POST, path: /callbacks/outbound/messaging/status, fixture: message-delivered.json }
+    expect: { status: 204 }
+
+  - id: T11
+    name: status callback accepts message-failed
+    request: { method: POST, path: /callbacks/outbound/messaging/status, fixture: message-failed.json }
+    expect: { status: 204 }
+
+  - id: T12
+    name: status callback rejects an inbound message
+    request: { method: POST, path: /callbacks/outbound/messaging/status, fixture: message-received-sms.json }
+    expect: { status: 400 }
+
+  - id: T13
+    name: status callback rejects malformed body
+    request: { method: POST, path: /callbacks/outbound/messaging/status, fixture: malformed.txt }
+    expect: { status: 400 }
+
+  - id: T14
+    name: inbound callback accepts an SMS
+    request: { method: POST, path: /callbacks/inbound/messaging, fixture: message-received-sms.json }
+    expect: { status: 204 }
+
+  # needs a Bandwidth stub for the media download
+  - id: T15
+    name: inbound callback downloads MMS media
+    skip: true
+    request: { method: POST, path: /callbacks/inbound/messaging, fixture: message-received-mms.json }
+    expect: { status: 204 }
+
+  - id: T16
+    name: inbound callback rejects a status callback
+    request: { method: POST, path: /callbacks/inbound/messaging, fixture: message-delivered.json }
+    expect: { status: 400 }
+
+  - id: T17
+    name: inbound callback rejects malformed body
+    request: { method: POST, path: /callbacks/inbound/messaging, fixture: malformed.txt }
+    expect: { status: 400 }
