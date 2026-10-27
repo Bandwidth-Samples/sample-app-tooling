@@ -1,0 +1,140 @@
+sample: voice-redirect-loop
+
+env:
+  BW_ACCOUNT_ID: "9900000"
+  BW_CLIENT_ID: fake-client-id
+  BW_CLIENT_SECRET: fake-client-secret
+  BASE_CALLBACK_URL: https://example.invalid
+  LOCAL_PORT: "{port}"
+
+startup:
+  ready_timeout_seconds: 30
+  # each case blanks or breaks one var and expects a non-zero exit
+  failure_cases:
+    - { id: T2-account-id, unset: BW_ACCOUNT_ID }
+    - { id: T2-client-id, unset: BW_CLIENT_ID }
+    - { id: T2-client-secret, unset: BW_CLIENT_SECRET }
+    - { id: T2-callback-url, unset: BASE_CALLBACK_URL }
+    - { id: T2-port, unset: LOCAL_PORT }
+    - { id: T2-port-not-int, set: { LOCAL_PORT: not-a-port } }
+
+fixtures_dir: fixtures/voice-redirect-loop
+
+# cases run in order against one app, so the active-call list builds up as they go
+cases:
+  - id: T3
+    name: no active calls at startup
+    request: { method: GET, path: /calls }
+    expect:
+      status: 200
+      content_type: application/json
+      json_equals: []
+
+  - id: T4
+    name: initiate speaks, rings and redirects
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: initiate.json }
+    expect:
+      status: 200
+      content_type: application/xml
+      bxml:
+        root: Response
+        children:
+          - { tag: SpeakSentence, text: "Redirecting call, please wait." }
+          - { tag: Ring, attrs: { duration: "30" } }
+          - { tag: Redirect, attrs: { redirectUrl_ends_with: /callbacks/inbound/voice } }
+
+  - id: T5
+    name: initiate adds the call to the active list
+    request: { method: GET, path: /calls }
+    expect:
+      status: 200
+      content_type: application/json
+      json_equals: ["c-00000000-00000000-00000000-000000000001"]
+
+  - id: T6
+    name: redirect loops with the same BXML
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: redirect.json }
+    expect:
+      status: 200
+      content_type: application/xml
+      bxml:
+        root: Response
+        children:
+          - { tag: SpeakSentence, text: "Redirecting call, please wait." }
+          - { tag: Ring, attrs: { duration: "30" } }
+          - { tag: Redirect, attrs: { redirectUrl_ends_with: /callbacks/inbound/voice } }
+
+  - id: T7
+    name: redirect doesn't add the call again
+    request: { method: GET, path: /calls }
+    expect:
+      status: 200
+      content_type: application/json
+      json_equals: ["c-00000000-00000000-00000000-000000000001"]
+
+  - id: T8
+    name: inbound voice rejects wrong eventType
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: disconnect.json }
+    expect: { status: 400 }
+
+  - id: T9
+    name: inbound voice rejects malformed body
+    request: { method: POST, path: /callbacks/inbound/voice, fixture: malformed.txt }
+    expect: { status: 400 }
+
+  - id: T10
+    name: callEnded speaks goodbye and hangs up
+    request: { method: POST, path: /callbacks/inbound/voice/callEnded, fixture: redirect.json }
+    expect:
+      status: 200
+      content_type: application/xml
+      bxml:
+        root: Response
+        children:
+          - { tag: SpeakSentence, text: "The call has been ended. Goodbye." }
+          - { tag: Hangup }
+
+  - id: T11
+    name: callEnded rejects wrong eventType
+    request: { method: POST, path: /callbacks/inbound/voice/callEnded, fixture: initiate.json }
+    expect: { status: 400 }
+
+  - id: T12
+    name: callEnded rejects malformed body
+    request: { method: POST, path: /callbacks/inbound/voice/callEnded, fixture: malformed.txt }
+    expect: { status: 400 }
+
+  - id: T13
+    name: delete rejects an unknown call
+    request: { method: DELETE, path: /calls/c-00000000-00000000-00000000-000000000099 }
+    expect: { status: 404 }
+
+  # needs a Bandwidth stub, same as voice-record's download case
+  - id: T14
+    name: delete redirects an active call to callEnded
+    skip: true
+    request: { method: DELETE, path: /calls/c-00000000-00000000-00000000-000000000001 }
+    expect: { status: 204 }
+
+  - id: T15
+    name: disconnect is acknowledged
+    request: { method: POST, path: /callbacks/inbound/voice/disconnect, fixture: disconnect.json }
+    expect: { status: 204 }
+
+  - id: T16
+    name: disconnect removes the call from the active list
+    request: { method: GET, path: /calls }
+    expect:
+      status: 200
+      content_type: application/json
+      json_equals: []
+
+  - id: T17
+    name: disconnect rejects wrong eventType
+    request: { method: POST, path: /callbacks/inbound/voice/disconnect, fixture: initiate.json }
+    expect: { status: 400 }
+
+  - id: T18
+    name: disconnect rejects malformed body
+    request: { method: POST, path: /callbacks/inbound/voice/disconnect, fixture: malformed.txt }
+    expect: { status: 400 }

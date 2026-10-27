@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Black-box contract runner: boots a sample app and checks it against a contract YAML."""
 import argparse
+import json
 import os
 import signal
 import socket
@@ -145,6 +146,14 @@ def check_case(case, port, fixtures_dir):
         want = (fixtures_dir / expect["body_equals_file"]).read_bytes()
         if body != want:
             errors.append(f"body differs from {expect['body_equals_file']}")
+    if "json_equals" in expect:
+        try:
+            actual = json.loads(body)
+        except ValueError:
+            errors.append("body is not valid JSON")
+        else:
+            if actual != expect["json_equals"]:
+                errors.append(f"body is {actual!r}, expected {expect['json_equals']!r}")
     return errors
 
 
