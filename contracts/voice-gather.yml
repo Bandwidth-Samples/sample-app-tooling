@@ -119,4 +119,4 @@ cases:
     name: create call succeeds
     skip: true
     request: { method: POST, path: /calls, fixture: calls-valid.json }
-    expect: { status: 200 }
+    expect: { status: 204 }
