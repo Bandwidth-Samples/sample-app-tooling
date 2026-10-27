@@ -90,6 +90,14 @@ def send(port, request, fixtures_dir):
         return e.code, e.headers.get("Content-Type", ""), e.read()
 
 
+def same_value(got, want):
+    # SDKs disagree on number formatting, e.g. Java prints duration="30.0"
+    try:
+        return got == want or float(got) == float(want)
+    except ValueError:
+        return False
+
+
 def check_children(node, expected, label):
     errors = []
     actual = list(node)
@@ -112,7 +120,7 @@ def check_children(node, expected, label):
                 errors.append(f"<{child.tag}> is missing attribute {attr}")
             elif suffix and not got.endswith(value):
                 errors.append(f"<{child.tag}> {attr}={got!r} doesn't end with {value!r}")
-            elif not suffix and got != value:
+            elif not suffix and not same_value(got, value):
                 errors.append(f"<{child.tag}> {attr}={got!r}, expected {value!r}")
         if "children" in want:
             errors += check_children(child, want["children"], f"<{child.tag}>")
