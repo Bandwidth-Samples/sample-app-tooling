@@ -1,0 +1,21 @@
+[
+  {
+    "time": "2026-01-01T12:00:00.000Z",
+    "type": "message-received",
+    "to": "+19195554321",
+    "description": "Incoming message received",
+    "message": {
+      "id": "1700000000000zyxwvutsrqponmlkji",
+      "owner": "+19195554321",
+      "applicationId": "00000000-0000-0000-0000-000000000000",
+      "time": "2026-01-01T12:00:00.000Z",
+      "segmentCount": 1,
+      "direction": "in",
+      "to": [
+        "+19195554321"
+      ],
+      "from": "+19195551234",
+      "text": "Stop"
+    }
+  }
+]

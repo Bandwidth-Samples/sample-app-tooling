@@ -1,0 +1,23 @@
+[
+  {
+    "time": "2026-01-01T12:00:01.000Z",
+    "type": "message-sending",
+    "to": "+19195551234",
+    "description": "Message is sending to carrier",
+    "message": {
+      "id": "1700000000000abcdefghijklmnopqrs",
+      "owner": "+19195554321",
+      "applicationId": "00000000-0000-0000-0000-000000000000",
+      "time": "2026-01-01T12:00:00.000Z",
+      "segmentCount": 1,
+      "direction": "out",
+      "to": [
+        "+19195551234"
+      ],
+      "from": "+19195554321",
+      "text": "Hello World!",
+      "tag": "",
+      "priority": "default"
+    }
+  }
+]
