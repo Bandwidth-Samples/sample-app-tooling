@@ -165,6 +165,62 @@ def check_case(case, port, fixtures_dir):
     return errors
 
 
+def run_cli(args, env, stdin_lines, timeout, log):
+    proc = subprocess.Popen(
+        args.start_command, shell=True, cwd=args.app_dir, env=env,
+        stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True,
+    )
+    stdin = "".join(f"{line}\n" for line in stdin_lines).encode()
+    timed_out = False
+    try:
+        output, _ = proc.communicate(stdin, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        stop_app(proc)
+        output, _ = proc.communicate()
+    finally:
+        stop_app(proc)
+    text = output.decode(errors="replace")
+    log.write(text)
+    log.flush()
+    return None if timed_out else proc.returncode, text
+
+
+def check_cli_case(case, contract, args, log):
+    timeout = case.get("timeout_seconds", contract["startup"]["timeout_seconds"])
+    code, output = run_cli(args, build_env(contract, None), case.get("stdin", []), timeout, log)
+    if code is None:
+        return [f"still running after {timeout}s"]
+    expect = case["expect"]
+    errors = []
+    if code != expect["exit_code"]:
+        errors.append(f"exit code {code}, expected {expect['exit_code']}")
+    if "output_contains" in expect and expect["output_contains"] not in output:
+        errors.append(f"output doesn't contain {expect['output_contains']!r}")
+    return errors
+
+
+def check_cli_ready(contract, args, log):
+    ready = contract["startup"]["ready_output"]
+    code, output = run_cli(args, build_env(contract, None), [], contract["startup"]["timeout_seconds"], log)
+    if code is None:
+        return ["still running with stdin closed"]
+    return [] if ready in output else [f"output doesn't contain {ready!r}"]
+
+
+def run_cli_startup_failure(case, contract, args, log):
+    timeout = contract["startup"]["timeout_seconds"]
+    env = build_env(contract, None, unset=case.get("unset"), override=case.get("set"))
+    code, output = run_cli(args, env, [], timeout, log)
+    if code is None:
+        return [f"still running after {timeout}s, expected a non-zero exit"]
+    errors = [] if code != 0 else ["exited 0, expected non-zero"]
+    # stdin is closed, so an app that skips the env check would also exit non-zero at its first prompt
+    if contract["startup"]["ready_output"] in output:
+        errors.append("prompted for input, expected to exit before prompting")
+    return errors
+
+
 def run_startup_failure(case, contract, args, log):
     port = free_port()
     env = build_env(contract, port, unset=case.get("unset"), override=case.get("set"))
@@ -191,33 +247,47 @@ def main():
     args.app_dir = args.app_dir.resolve()
 
     contract = yaml.safe_load(args.contract.read_text())
-    fixtures_dir = args.fixtures_root / contract["fixtures_dir"]
+    fixtures_dir = args.fixtures_root / contract.get("fixtures_dir", "")
     log_path = args.log_file or Path(tempfile.gettempdir()) / "contract-app.log"
     results = []
 
+    cli = contract.get("mode", "http") == "cli"
+
     with open(log_path, "w") as log:
-        port = free_port()
-        proc = start_app(args.start_command, args.app_dir, build_env(contract, port), log)
-        try:
-            booted = wait_for_port(proc, port, contract["startup"]["ready_timeout_seconds"])
-            results.append(("T1", "boots with all env vars", [] if booted else ["port never opened"]))
-            if booted:
-                for case in contract["cases"]:
-                    if case.get("skip") or case["id"] in args.skip:
-                        results.append((case["id"], case["name"], None))
-                        continue
-                    results.append((case["id"], case["name"],
-                                    check_case(case, port, fixtures_dir)))
-        finally:
-            stop_app(proc)
+        if cli:
+            ready_errors = check_cli_ready(contract, args, log)
+            booted = not ready_errors
+            results.append(("T1", "starts and prompts with all env vars", ready_errors))
+            for case in contract["cases"]:
+                # a crashing app would "pass" every case that expects a non-zero exit
+                if case.get("skip") or case["id"] in args.skip or not booted:
+                    results.append((case["id"], case["name"], None))
+                    continue
+                results.append((case["id"], case["name"], check_cli_case(case, contract, args, log)))
+        else:
+            port = free_port()
+            proc = start_app(args.start_command, args.app_dir, build_env(contract, port), log)
+            try:
+                booted = wait_for_port(proc, port, contract["startup"]["ready_timeout_seconds"])
+                results.append(("T1", "boots with all env vars", [] if booted else ["port never opened"]))
+                if booted:
+                    for case in contract["cases"]:
+                        if case.get("skip") or case["id"] in args.skip:
+                            results.append((case["id"], case["name"], None))
+                            continue
+                        results.append((case["id"], case["name"],
+                                        check_case(case, port, fixtures_dir)))
+            finally:
+                stop_app(proc)
 
         for case in contract["startup"]["failure_cases"]:
             # a crashing app would "pass" every fail-fast case
             if case["id"] in args.skip or not booted:
                 results.append((case["id"], "startup failure", None))
                 continue
+            check = run_cli_startup_failure if cli else run_startup_failure
             results.append((case["id"], f"bad env ({case.get('unset') or case.get('set')}) fails fast",
-                            run_startup_failure(case, contract, args, log)))
+                            check(case, contract, args, log)))
 
     failed = 0
     for case_id, name, errors in results:

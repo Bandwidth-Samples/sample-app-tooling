@@ -1,0 +1,64 @@
+sample: mfa-cli
+mode: cli
+
+env:
+  BW_ACCOUNT_ID: "9900000"
+  BW_CLIENT_ID: fake-client-id
+  BW_CLIENT_SECRET: fake-client-secret
+  BW_NUMBER: "+19195554321"
+  BW_VOICE_APPLICATION_ID: "00000000-0000-0000-0000-000000000001"
+  BW_MESSAGING_APPLICATION_ID: "00000000-0000-0000-0000-000000000000"
+
+startup:
+  # covers a cold `dotnet run` / `mvn exec:java` per process
+  timeout_seconds: 60
+  ready_output: "Enter the phone number"
+  # each case blanks one var and expects a non-zero exit before the first prompt
+  failure_cases:
+    - { id: T2-account-id, unset: BW_ACCOUNT_ID }
+    - { id: T2-client-id, unset: BW_CLIENT_ID }
+    - { id: T2-client-secret, unset: BW_CLIENT_SECRET }
+    - { id: T2-number, unset: BW_NUMBER }
+    - { id: T2-voice-application-id, unset: BW_VOICE_APPLICATION_ID }
+    - { id: T2-messaging-application-id, unset: BW_MESSAGING_APPLICATION_ID }
+
+cases:
+  - id: T3
+    name: rejects a phone number that isn't E.164
+    stdin: ["5554443333"]
+    expect: { exit_code: 1, output_contains: "Phone number must be in E.164 format" }
+
+  - id: T4
+    name: rejects an unknown method
+    stdin: ["+15554443333", "fax"]
+    expect: { exit_code: 1, output_contains: "Method must be messaging or voice" }
+
+  # the send fails against fake credentials, so these only prove the method was parsed
+  - id: T5
+    name: an empty method sends by messaging
+    stdin: ["+15554443333", ""]
+    expect: { exit_code: 1, output_contains: "Sending a code by messaging to" }
+
+  - id: T6
+    name: the method is trimmed and case-insensitive
+    stdin: ["+15554443333", " VOICE "]
+    expect: { exit_code: 1, output_contains: "Sending a code by voice to" }
+
+  - id: T7
+    name: exits non-zero when input ends early
+    stdin: ["+15554443333"]
+    expect: { exit_code: 1, output_contains: "Send the code by messaging or voice?" }
+
+  # needs an MFA stub so the send succeeds
+  - id: T8
+    name: a right code is verified
+    skip: true
+    stdin: ["+15554443333", "messaging", "123456"]
+    expect: { exit_code: 0, output_contains: "Code verified" }
+
+  # needs an MFA stub so the send succeeds
+  - id: T9
+    name: a wrong code is not verified
+    skip: true
+    stdin: ["+15554443333", "messaging", "000000"]
+    expect: { exit_code: 1, output_contains: "Code not verified" }
