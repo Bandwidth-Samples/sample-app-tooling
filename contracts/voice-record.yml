@@ -64,7 +64,7 @@ cases:
     request: { method: POST, path: /callbacks/inbound/voice/recordingAvailable, fixture: malformed.txt }
     expect: { status: 400 }
 
-  # needs a Bandwidth stub, see voice-record-contract.md
+  # needs a Bandwidth stub
   - id: T9
     name: recordingAvailable downloads and saves the recording
     skip: true
