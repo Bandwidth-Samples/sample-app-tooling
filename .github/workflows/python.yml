@@ -55,12 +55,12 @@ jobs:
         with:
           python-version: ${{ inputs.python-version }}
 
+      - name: Install runner dependencies
+        run: pip install -r tooling/runner/requirements.txt
+
       - name: Install app dependencies
         working-directory: app/${{ inputs.working-directory }}
         run: ${{ inputs.install-command }}
-
-      - name: Install runner dependencies
-        run: pip install -r tooling/runner/requirements.txt
 
       - name: Run contract
         run: >
@@ -73,9 +73,7 @@ jobs:
 
       - name: Checklist lint
         if: ${{ !cancelled() && github.event_name == 'pull_request' }}
-        run: |
-          pip install -q -r tooling/runner/requirements.txt
-          python tooling/runner/lint_sample.py --app-dir app --template-dir template --repo-name ${{ github.event.repository.name }}
+        run: python tooling/runner/lint_sample.py --app-dir app --template-dir template --repo-name ${{ github.event.repository.name }}
 
       - name: Show app log
         if: failure()

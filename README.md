@@ -57,9 +57,17 @@ The job uses fake credentials only, so no secrets are needed and it is safe on f
 
 | Contract | Description |
 |---|---|
+| [`contracts/messaging-send-receive.yml`](contracts/messaging-send-receive.yml) | Send SMS/MMS via `POST /messages`, status callbacks, inbound messages with MMS media download |
+| [`contracts/messaging-auto-respond.yml`](contracts/messaging-auto-respond.yml) | Keyword auto-replies to inbound messages, status callbacks |
+| [`contracts/mfa-cli.yml`](contracts/mfa-cli.yml) | CLI over stdin/stdout: phone number and method prompts, sending and verifying a code |
+| [`contracts/voice-bridge.yml`](contracts/voice-bridge.yml) | Inbound call that creates an outbound call and bridges the two |
+| [`contracts/voice-gather.yml`](contracts/voice-gather.yml) | Outbound call via `POST /calls`, Gather menu, digit handling |
 | [`contracts/voice-record.yml`](contracts/voice-record.yml) | Inbound call, voicemail recording, `recordingAvailable` webhook |
+| [`contracts/voice-redirect-loop.yml`](contracts/voice-redirect-loop.yml) | Inbound call held in a redirect loop, active calls via `GET /calls`, ended via `DELETE /calls/{callId}` |
 
 Each contract lists the env vars the app must read, the startup failure cases, and the requests to send with their expected status, content type and body. Request bodies live in [`fixtures/`](fixtures). A case with `skip: true` is defined but not run.
+
+`mfa-cli` is a CLI, so its contract sets `mode: cli`. Instead of requests, each case gives the lines to send on stdin and the expected exit code and output. The app is ready once it prints `ready_output`.
 
 ## Running the runner locally
 
@@ -75,6 +83,25 @@ python runner/run_contract.py \
 ```
 
 The runner picks a free port, sets fake `BW_*` env vars, and drops any `BW_*`, `CLIENT_*` and `LOCAL_PORT` variables from your shell so real credentials never reach the app. It exits non-zero if any case fails. Use `--skip <case-id>` to skip a case and `--log-file` to keep the app's output.
+
+## Checklist lint
+
+On pull requests, the contract job also runs a "Checklist lint" step. It checks the sample against the mechanical items in the [`bandwidth-template` checklist](https://github.com/Bandwidth-Samples/bandwidth-template/blob/main/checklist.md). It runs even if the contract failed, and either one failing fails the job. It doesn't run on scheduled runs.
+
+The sample type and language come from the repo name (`<type>-<lang>`), and the expected icons, env var order and Dependabot config come from `bandwidth-template` at `main`.
+
+Each failure names the file, what it found and what was expected.
+
+To run it locally against a clone:
+
+```sh
+python runner/lint_sample.py \
+  --app-dir ../voice-record-js \
+  --template-dir ../bandwidth-template \
+  --repo-name voice-record-js
+```
+
+It exits 0 when clean, 1 when it finds problems, and 2 when the template checkout is missing something it needs.
 
 ## License
 
